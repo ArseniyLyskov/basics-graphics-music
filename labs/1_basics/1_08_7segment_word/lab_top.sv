@@ -78,7 +78,7 @@ module lab_top
         else
             cnt <= cnt + 1'd1;
 
-    wire enable = (cnt [22:0] == '0);
+    wire enable = (cnt [16:0] == '0);
 
     //------------------------------------------------------------------------
 
@@ -110,6 +110,9 @@ module lab_top
         P     = 8'b1100_1110,
         G     = 8'b1011_1100,
         A     = 8'b1110_1110,
+        H     = 8'b0110_1110,
+        E     = 8'b1001_1110,
+        L     = 8'b0001_1100,
         space = 8'b0000_0000
     }
     seven_seg_encoding_e;
@@ -118,10 +121,10 @@ module lab_top
 
     always_comb
       case (4' (shift_reg))
-      4'b1000: letter = F;
-      4'b0100: letter = P;
-      4'b0010: letter = G;
-      4'b0001: letter = A;
+      4'b1000: letter = H;
+      4'b0100: letter = E;
+      4'b0010: letter = L;
+      4'b0001: letter = L;
       default: letter = space;
       endcase
 
