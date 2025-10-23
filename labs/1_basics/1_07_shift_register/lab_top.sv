@@ -60,8 +60,8 @@ module lab_top
     //------------------------------------------------------------------------
 
     // assign led        = '0;
-       assign abcdefgh   = '0;
-       assign digit      = '0;
+    // assign abcdefgh   = '0;
+    // assign digit      = '0;
        assign red        = '0;
        assign green      = '0;
        assign blue       = '0;
@@ -78,28 +78,80 @@ module lab_top
         else
             cnt <= cnt + 1'd1;
 
-    wire enable = (cnt [22:0] == '0);
+    wire shift = (cnt [21:0] == '0);
+    wire switch_reg = (cnt [14:0] == '0);
+    wire button_on = | key;
 
     //------------------------------------------------------------------------
 
-    wire button_on = | key;
-
-    logic [w_led - 1:0] shift_reg;
+    /* logic [w_led - 1:0] shift_reg;
 
     always_ff @ (posedge clk or posedge rst)
         if (rst)
             shift_reg <= '1;
-        else if (enable)
+        else if (shift)
             shift_reg <= { button_on, shift_reg [w_led - 1:1] };
 
-    assign led = shift_reg;
+    assign led = shift_reg; */
 
     // Exercise 1: Make the light move in the opposite direction.
+
+    /* logic [w_led - 1:0] shift_reg;
+
+    always_ff @ (posedge clk or posedge rst)
+        if (rst)
+            shift_reg <= '1;
+        else if (shift)
+            shift_reg <= { shift_reg [w_led - 2:0], button_on };
+
+    assign led = shift_reg; */
 
     // Exercise 2: Make the light moving in a loop.
     // Use another key to reset the moving lights back to no lights.
 
+    /* logic [w_led - 1:0] shift_reg;
+
+    always_ff @ (posedge clk or posedge rst)
+        if (rst)
+            shift_reg <= '0;
+        else if (shift)
+            shift_reg <= { shift_reg[0] | button_on, shift_reg[w_led - 1:1] };
+
+    assign led = shift_reg; */
+
     // Exercise 3: Display the state of the shift register
     // on a seven-segment display, moving the light in a circle.
+
+    localparam REG_SIZE = 16;
+    logic [REG_SIZE - 1 : 0] shift_reg;
+
+    logic [7:0] abcdefgh_table [0 : REG_SIZE - 1] = '{
+        'b1000_0000, 'b0000_0100, 'b0000_0010, 'b0100_0000, 'b1000_0000, 
+        'b1000_0000, 'b0100_0000, 'b0010_0000, 'b0001_0000, 'b0010_0000,
+        'b0000_0010, 'b0000_1000, 'b0001_0000, 'b0001_0000, 'b0000_1000,
+        'b0000_0100
+    };
+    logic [w_digit - 1 : 0] digit_table [0 : REG_SIZE - 1] = '{
+        'b1000, 'b0100, 'b0100, 'b0100, 'b0010, 
+        'b0001, 'b0001, 'b0001, 'b0001, 'b0010,
+        'b0010, 'b0010, 'b0100, 'b1000, 'b1000,
+        'b1000
+    };
+
+    logic [$clog2(REG_SIZE) - 1 : 0] reg_sel;
+    always_ff @ (posedge clk or posedge rst)
+        if (rst)
+            reg_sel <= '0;
+        else if (switch_reg)
+            reg_sel <= (reg_sel == REG_SIZE - 1) ? 0 : reg_sel + 1;
+
+    always_ff @ (posedge clk or posedge rst)
+        if (rst)
+            shift_reg <= '0;
+        else if (shift)
+            shift_reg <= { shift_reg[REG_SIZE - 2: 0], shift_reg[REG_SIZE - 1] | button_on };
+
+    assign abcdefgh = shift_reg[reg_sel] ? abcdefgh_table [reg_sel] : '0;
+    assign digit    = digit_table [reg_sel];
 
 endmodule
