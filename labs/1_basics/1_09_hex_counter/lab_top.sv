@@ -70,12 +70,7 @@ module lab_top
 
     //------------------------------------------------------------------------
 
-    // Exercise 1. Synthesize the counter controlled by two keys.
-    // When one key is in pressed position - the frequency increases,
-    // when another key is in pressed position - the frequency decreases.
-    // Change the period increment / decrement and see what happens.
-
-    logic [31:0] period;
+    /* logic [31:0] period;
 
     localparam min_period = clk_mhz * 1000 * 1000 / 50,
                max_period = clk_mhz * 1000 * 1000 *  3;
@@ -106,12 +101,12 @@ module lab_top
         else if (cnt_1 == '0)
             cnt_2 <= cnt_2 + 1'd1;
 
-    assign led = cnt_2;
+    assign led = cnt_2; */
 
     //------------------------------------------------------------------------
 
     // 4 bits per hexadecimal digit
-    localparam w_display_number = w_digit * 4;
+    /* localparam w_display_number = w_digit * 4;
 
     seven_segment_display # (w_digit) i_7segment
     (
@@ -121,13 +116,82 @@ module lab_top
         .dots     ( w_digit' (0)              ),
         .abcdefgh ( abcdefgh                  ),
         .digit    ( digit                     )
-    );
+    ); */
 
     //------------------------------------------------------------------------
 
-    // Exercise 2: Change the example above to:
-    //
-    // 1. Double the frequency when one key is pressed and released.
-    // 2. Halve the frequency when another key is pressed and released.
+    // Exercise 1:
+    // Implement a circular line on seven-segment 
+    // indicators using multi-bit shift registers
+
+    // Exercise 2:
+    // Add control of the speed of movement of the 
+    // running line to the solution of exercise 1.
+
+    localparam W_SHIFT_SPEED = $clog2(w_led);
+
+    logic [31:0] counter;
+    logic digit_strobe, shift_strobe;
+    logic [W_SHIFT_SPEED - 1 : 0] shift_speed;
+    logic [w_key - 1 : 0] key_r;
+
+    always_ff @(posedge clk or posedge rst)
+        if (rst) counter <= '0;
+        else counter <= counter + 1'b1;
+
+    always_ff @(posedge clk or posedge rst)
+        if (rst) key_r <= '0;
+        else key_r <= key;
+
+    always_ff @(posedge clk or posedge rst)
+        if (rst) shift_speed <= 1'b1; 
+        else if (~ key_r[1] & key[1]) shift_speed <= shift_speed == w_led - 1 ? 0 : shift_speed + 1;
+        else if (~ key_r[0] & key[0]) shift_speed <= shift_speed == 0 ? w_led - 1 : shift_speed - 1;
+
+    assign digit_strobe = counter [14:0] == '0;
+    assign shift_strobe = (counter [24 : 0] & {shift_speed < 1, shift_speed < 2, shift_speed < 3, {22{1'b1}}}) == '0;
+
+    assign led = 1 << shift_speed;
+
+    //   --a--
+    //  |     |
+    //  f     b
+    //  |     |
+    //   --g--
+    //  |     |
+    //  e     c
+    //  |     |
+    //   --d--  h
+
+    localparam REG_SIZE = 16;
+
+    enum logic [7:0] {
+        A     = 8'b1110_1110,
+        R     = 8'b0000_1010,
+        S     = 8'b1011_0110,
+        E     = 8'b1001_1110,
+        N     = 8'b0010_1010,
+        I     = 8'b0110_0000,
+        Y     = 8'b0111_0110,
+        space = 8'b0000_0000,
+        L     = 8'b0001_1100,
+        K     = 8'b1010_1110,
+        O     = 8'b1111_1100,
+        V     = 8'b0011_1000
+    } seven_seg_encoding;
+
+    logic [REG_SIZE - 1 : 0][7:0] shift_reg;
+
+    always_ff @(posedge clk or posedge rst)
+        if (rst) shift_reg <= { A, L, I, N, A, space, L, Y, S, K, O, V, A, space, space, space };
+        else if (shift_strobe) shift_reg <= { shift_reg[REG_SIZE - 2 : 0], shift_reg[REG_SIZE - 1] };
+
+    logic [$clog2(w_led) - 1 : 0] digit_reg;
+    always_ff @ (posedge clk or posedge rst)
+        if (rst) digit_reg <= '0;
+        else if (digit_strobe) digit_reg <= digit_reg == w_digit - 1 ? 0 : digit_reg + 1;
+
+    assign digit = 1 << digit_reg;
+    assign abcdefgh = shift_reg[digit_reg];
 
 endmodule
